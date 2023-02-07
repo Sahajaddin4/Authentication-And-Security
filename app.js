@@ -4,7 +4,7 @@ const ejs=require('ejs');
 const bodyParser=require('body-parser');
 const mongoose=require('mongoose');
 const encryptData=require('mongoose-encryption');
-
+const md5=require('md5');
 const app=express();
 
 //Make Static file usuable
@@ -48,10 +48,10 @@ const secretSchema=new mongoose.Schema(
 
 
 
-//Encrypt password
-const secret =process.env.SECRET;
+//Encrypt password  with dotenv 
+// const secret =process.env.SECRET;
 
-userSchema.plugin(encryptData,{secret:secret ,encryptedFields:['password']});
+// userSchema.plugin(encryptData,{secret:secret ,encryptedFields:['password']});
 
 //creating model
 const UserData=mongoose.model('UserData',userSchema);
@@ -80,14 +80,18 @@ app.route('/login').get((req,res)=>{
     res.render('login');
 }).post((req,res)=>{
    const userEmail=req.body.userEmail;
-   const userPassword=req.body.userPassword;
+   const userPassword=md5(req.body.userPassword);
   
     UserData.findOne({email:userEmail},(err,userFound)=>
     {
         if(!err)
         {
             if (userFound && userFound.password===userPassword) {
-                res.render('secrets');
+                Secret.find((err,foundSecret)=>
+                {
+                    res.render('secrets',{renderSecrets:foundSecret});
+                })
+                
             } else {
                
                 res.redirect('register');
@@ -115,16 +119,16 @@ app.route('/submit').get((req,res)=>{
     });
 
 //Secret routes
-app.get('/secrets',(req,res)=>{
+// app.get('/secrets',(req,res)=>{
 
-    //Secret.findOne()
-    res.render('secrets');
-})
+//     //Secret.findOne()
+//     res.render('secrets');
+// })
 //register route
 app.route('/register').post((req,res)=>{
     
     const userEmail=req.body.userEmail;
-    const userPassword=req.body.userPassword;
+    const userPassword=md5(req.body.userPassword);
 
     const userDetails=new UserData(
         {
