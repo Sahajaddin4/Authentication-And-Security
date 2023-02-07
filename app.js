@@ -1,10 +1,14 @@
-require('dotenv').config() //Have to keep at top
+//require('dotenv').config() //Have to keep at top
 const express=require('express');
 const ejs=require('ejs');
 const bodyParser=require('body-parser');
 const mongoose=require('mongoose');
-const encryptData=require('mongoose-encryption');
-const md5=require('md5');
+//const encryptData=require('mongoose-encryption');
+//const md5=require('md5');
+const bcrypt=require('bcrypt');
+const saltRounds=10;
+
+
 const app=express();
 
 //Make Static file usuable
@@ -80,23 +84,28 @@ app.route('/login').get((req,res)=>{
     res.render('login');
 }).post((req,res)=>{
    const userEmail=req.body.userEmail;
-   const userPassword=md5(req.body.userPassword);
+   const userPassword=req.body.userPassword;
   
     UserData.findOne({email:userEmail},(err,userFound)=>
     {
-        if(!err)
+        if(!err && userFound)
         {
-            if (userFound && userFound.password===userPassword) {
-                Secret.find((err,foundSecret)=>
-                {
-                    res.render('secrets',{renderSecrets:foundSecret});
-                })
-                
-            } else {
-               
-                res.redirect('register');
+            bcrypt.compare(userPassword,userFound.password,(err,result)=>
+            {
+                if (!err && result===true) {
 
-            }
+                    Secret.find((err,foundSecret)=>
+                    {
+                        res.render('secrets',{renderSecrets:foundSecret});
+                    });
+                    
+                } else {
+                   
+                    res.send('Don\'t have a account?');
+    
+                }
+            })
+           
         }
     })
 
@@ -128,34 +137,39 @@ app.route('/submit').get((req,res)=>{
 app.route('/register').post((req,res)=>{
     
     const userEmail=req.body.userEmail;
-    const userPassword=md5(req.body.userPassword);
+    const userPassword=(req.body.userPassword);
 
-    const userDetails=new UserData(
-        {
-            email:userEmail,
-            password:userPassword
-        }
-    );
-
-    UserData.findOne({email:userEmail},(err,foundData)=>
+    //Hashing And salting password more security
+    bcrypt.hash(userPassword,saltRounds,(err,hashPassword)=>
     {
-        if(!err)
-        {
-            if(!foundData)
+        const userDetails=new UserData(
             {
-                userDetails.save(
-                    (err)=>
-                    {
-                        console.log(err);
-                    }
-                );
-                res.redirect('login');
+                email:userEmail,
+                password:hashPassword
             }
-            else{
-                res.send("Account already exists!!")
+        );
+    
+        UserData.findOne({email:userEmail},(err,foundData)=>
+        {
+            if(!err)
+            {
+                if(!foundData)
+                {
+                    userDetails.save(
+                        (err)=>
+                        {
+                            console.log(err);
+                        }
+                    );
+                    res.redirect('login');
+                }
+                else{
+                    res.send("Account already exists!!")
+                }
             }
-        }
+        });
     });
+   
 
 }).get((req,res)=>{
     res.render('register');
